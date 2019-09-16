@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<macros>
+<macro name="  macroname  " class="  weaponorturret  ">
+        <component ref="  compname  " />
+        <properties>
+            <identification name="{ pageident , nameid }" basename="{ pageident , baseid }" shortname="{ pageident , shortid }" description="{ pageident , descid }" mk="1" />
+            <bullet class="  bulletmacroname  " />
+            <heat overheat="10000" cooldelay="1.13" coolrate="2000" reenable="7500" />
+            <rotationspeed max="  rotmax  " />
+            <rotationacceleration max="  rotacc  " />
+            <!-- <reload time="  reloadtime  " /> -->
+            <hull max="  hullvalue  " hittable="1" integrated="1" />
+        </properties>
+    </macro>
+</macros>
+

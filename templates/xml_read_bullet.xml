@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<macros>
+<macro name="  bulletmacroname  " class="bullet">
+        <component ref="  componentname  " />
+        <properties>
+            <bullet speed="  speedvalue  " lifetime="  lifetimevalue  " amount="1" barrelamount="1" icon="  iconname  " timediff="0.005" angle="0.05" maxhits="1" ricochet="0" scale="  laserbool  " attach="0" />
+            <reload time="  rateoffire  " />
+                <damage min="  mindamage  " max="  maxdamage  " value="  flatdamage  " time="  lifetimevalue  " /> 
+            <effects>
+                <impact ref="  impactname  " />
+                <launch ref="  launchname  " />
+            </effects>
+            <weapon system="  weaponsystem  " />
+        </properties>
+    </macro>
+</macros>

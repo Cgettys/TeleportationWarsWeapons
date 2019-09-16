@@ -1,0 +1,16 @@
+
+<ware id="  wareid  " name="{ pageident , nameid }" description="{ pageident , descid }" group="  classgroup  " transport="equipment" volume="1" tags="equipment  weaponorturret  ">
+    <price min="  minprice  " average="  avgprice  " max="  maxprice  " />
+    <production time="10" amount="1" method="default" name="{20206,101}">
+      <primary>
+        <ware ware="  prodwareone  " amount="  prodwareone_amount  " />
+        <ware ware="  prodwaretwo  " amount="  prodwaretwo_amount  " />
+        <ware ware="  prodwarethree  " amount="  prodwarethree_amount  " />
+      </primary>
+    </production>
+    <component ref="  macroname  " amount="1" />
+    <use threshold="1.0" />
+    <owner faction="  factions_ware  " />
+    <!-- test -->
+    <owner faction="argon" />
+</ware>
