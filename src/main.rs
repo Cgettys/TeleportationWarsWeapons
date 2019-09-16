@@ -67,7 +67,7 @@ fn main() -> Result<()> {
     let closing = "\"  />";
     // end string crap
 
-    let macro_count = 20;
+    let macro_count = 500;
     let min_range = 0;
 
     let mut wep_vec = vec![];
@@ -701,9 +701,10 @@ fn main() -> Result<()> {
                 weaponorturret_vec.push("weapon".to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
-                    compname_vec.push(bullet_s_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_s_art).to_string())
                 } else {
-                    compname_vec.push(bullet_s_beam_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_s_beam_art).to_string())
+                  
                 }
 
                 wep_comp_vec.push(
@@ -713,15 +714,15 @@ fn main() -> Result<()> {
                         .to_string(),
                 );
                 weaponrange_vec.push(prng.gen_range(2, 10));
-                iconname_vec.push(wep_icons[i].to_string());
+                iconname_vec.push(choose_random(&mut wep_icons).to_string());
                 rateoffire_vec.push(prng.gen_range(0.5, 5.0));
                 mindamage_vec.push(prng.gen_range(10, 50));
                 maxdamage_vec.push(prng.gen_range(50, 100));
                 flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
                 speed_vec.push(prng.gen_range(500, 2000));
                 weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(impact_vec[i].to_string());
-                launchname_vec.push(launch_vec[i].to_string());
+                impactname_vec.push(choose_random(&mut impact_vec).to_string());
+                launchname_vec.push(choose_random(&mut launch_vec).to_string());
                 weaponsystem_vec.push("weapon_standard".to_string());
 
                 rotmax_vec.push(prng.gen_range(10, 240));
@@ -766,10 +767,11 @@ fn main() -> Result<()> {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
-                    compname_vec.push(bullet_s_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
                 } else {
-                    compname_vec.push(bullet_s_beam_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
                 }
+               
                 if weaponorturret_vec[i] == "weapon".to_string() {
                     wep_comp_vec.push(
                         weapon_m_art
@@ -789,15 +791,15 @@ fn main() -> Result<()> {
                 }
 
                 weaponrange_vec.push(prng.gen_range(4, 10));
-                iconname_vec.push(wep_icons[i].to_string());
+                iconname_vec.push(choose_random(&mut wep_icons).to_string());
                 rateoffire_vec.push(prng.gen_range(0.5, 5.0));
                 mindamage_vec.push(prng.gen_range(10, 50));
                 maxdamage_vec.push(prng.gen_range(50, 100));
                 flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
                 speed_vec.push(prng.gen_range(500, 2000));
                 weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(impact_vec[i].to_string());
-                launchname_vec.push(launch_vec[i].to_string());
+                impactname_vec.push(choose_random(&mut impact_vec).to_string());
+                launchname_vec.push(choose_random(&mut launch_vec).to_string());
                 weaponsystem_vec.push("weapon_standard".to_string());
                 rotmax_vec.push(prng.gen_range(10, 240));
                 rotacc_vec.push(prng.gen_range(10, 240));
@@ -840,10 +842,11 @@ fn main() -> Result<()> {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
-                    compname_vec.push(bullet_s_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
                 } else {
-                    compname_vec.push(bullet_s_beam_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
                 }
+               
                 if weaponorturret_vec[i] == "weapon".to_string() {
                     wep_comp_vec.push(
                         weapon_l_art
@@ -868,15 +871,15 @@ fn main() -> Result<()> {
                         .to_string(),
                 );
                 weaponrange_vec.push(prng.gen_range(6, 12));
-                iconname_vec.push(wep_icons[i].to_string());
+                iconname_vec.push(choose_random(&mut wep_icons).to_string());
                 rateoffire_vec.push(prng.gen_range(0.5, 5.0));
                 mindamage_vec.push(prng.gen_range(10, 50));
                 maxdamage_vec.push(prng.gen_range(50, 100));
                 flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
                 speed_vec.push(prng.gen_range(500, 2000));
                 weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(impact_vec[i].to_string());
-                launchname_vec.push(launch_vec[i].to_string());
+                impactname_vec.push(choose_random(&mut impact_vec).to_string());
+                launchname_vec.push(choose_random(&mut launch_vec).to_string());
                 weaponsystem_vec.push("weapon_standard".to_string());
                 rotmax_vec.push(prng.gen_range(10, 240));
                 rotacc_vec.push(prng.gen_range(10, 240));
@@ -919,9 +922,9 @@ fn main() -> Result<()> {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
-                    compname_vec.push(bullet_s_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
                 } else {
-                    compname_vec.push(bullet_s_beam_art[i].to_string())
+                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
                 }
                 if weaponorturret_vec[i] == "weapon".to_string() {
                     wep_comp_vec.push(
@@ -947,15 +950,15 @@ fn main() -> Result<()> {
                         .to_string(),
                 );
                 weaponrange_vec.push(prng.gen_range(8, 14));
-                iconname_vec.push(wep_icons[i].to_string());
+                iconname_vec.push(choose_random(&mut wep_icons).to_string());
                 rateoffire_vec.push(prng.gen_range(10.0, 50.0));
                 mindamage_vec.push(prng.gen_range(1000, 5000));
                 maxdamage_vec.push(prng.gen_range(5000, 50000));
                 flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 50000));
                 speed_vec.push(prng.gen_range(500, 2000));
                 weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(impact_vec[i].to_string());
-                launchname_vec.push(launch_vec[i].to_string());
+                impactname_vec.push(choose_random(&mut impact_vec).to_string());
+                launchname_vec.push(choose_random(&mut launch_vec).to_string());
                 weaponsystem_vec.push("weapon_standard".to_string());
                 rotmax_vec.push(prng.gen_range(10, 240));
                 rotacc_vec.push(prng.gen_range(10, 240));
