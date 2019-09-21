@@ -21,11 +21,127 @@ TODO:
     - maybe read from an extraction for the lists
     - move the file generation around 
 */
+
+
+use serde_derive::Deserialize;
+use std::iter::Map;
+enum Profile {
+    Small,
+    Medium,
+    Large,
+    ExtraLarge
+}
+#[derive(Deserialize)]
+struct ProfileData {
+    modifiers: Vec<String>,
+    weapons: Vec<String>,
+    turrets: Vec<String>,
+    beams: Vec<String>,
+    projectiles: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct Effects {
+    impact: Vec<String>,
+    muzzle: Vec<String>,
+}
+#[derive(Deserialize)]
+struct Art {
+    icons: Vec<String>,
+    effects: Effects,
+}
+#[derive(Deserialize)]
+struct Modifiers {
+    weak: Vec<String>,
+    strong: Vec<String>,
+    guntype: Vec<String>,
+    gunmethod: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct Config {
+    page_id: u32,
+    template_path: String,
+    target_path: String,
+    prodwares: Vec<String>,
+    factions: Vec<String>,
+    art: Art,
+    general_modifiers: modifiers,
+    small: ProfileData,
+    medium: ProfileData,
+    large: ProfileData,
+    extralarge: ProfileData
+}
+struct Ship<'a> {
+    weapon: &'a str,
+    bullet: &'a str,
+    bullet_macroname: &'a str,
+    ware: &'a str,
+    weapon_component: &'a str,
+
+    icon_name: &'a str,
+    laser: bool,
+    rate_of_fire: f64,
+
+    damage_min: i32,
+    damage_max: i32,
+    damage_flat: i32,
+    speed: i32,
+    weapon_range: i32,
+    speed_vec: i32,
+
+    impact_effect: &'a str,
+    muzzle_effect: &'a str,
+    weapon_system: &'a str,
+    weapon_or_turret: &'a str,
+
+    rot_max: i32,
+    rot_accel: i32,
+    reload_time: i32,
+    hull_value: i32,
+
+    price_min: i32,
+    price_avg: i32,
+    price_max: i32,
+
+    factions_ware: &'a str,
+    class: &'a str,
+
+    prodware_one_name: &'a str,
+    prodware_one_qty: i32,
+    prodware_two_name: &'a str,
+    prodware_two_qty: i32,
+    prodware_three_name: &'a str,
+    prodware_three_qty: i32,
+    compname: &'a str,
+    macroname: &'a str,
+    tname: &'a str,
+}
+fn read_file(path: &str) -> String {
+    fs::read_to_string(path).unwrap()
+}
+
+fn replace_string(template: &mut String, word: &str, txt: &str) -> () {
+    let word_start = template.find(word).unwrap_or(template.len());
+    let word_end = word_start + word.len();
+
+    template.replace_range(word_start..word_end, &txt.to_string());
+}
+
+fn choose_random(choosefrom: &Vec<String>) -> String {
+    let returnthing = choosefrom
+        .choose(&mut rand::thread_rng())
+        .unwrap()
+        .to_string();
+    return returnthing;
+}
 fn main() -> Result<()> {
     //parsing the "words" as stuff between whitespace
-
+    let toml_str = fs::read_to_string("Config.toml").unwrap();
+    let conf = toml_str.parse::<Config>().unwrap();
+    let art = conf.art;
     // tfiles
-    let page_id = 12345678;
+    let page_id = conf.general.page_id;
     let mut wep_name_id = 1;
     let mut wep_base_id = 2;
     let mut wep_short_id = 3;
@@ -40,25 +156,22 @@ fn main() -> Result<()> {
     let macroname = "macroname";
 
     // paths -> options -> strings
-
-    let path_weapon = "C:/Users/alby/Desktop/rust_targets/xml_read_weapon.xml";
-    let path_bullet = "C:/Users/alby/Desktop/rust_targets/xml_read_bullet.xml";
-    let path_ware = "C:/Users/alby/Desktop/rust_targets/xml_read_ware.xml";
-    let path_index = "C:/Users/alby/Desktop/rust_targets/xml_read_index.xml";
-    let path_tfile = "C:/Users/alby/Desktop/rust_targets/tfiles.xml";
+    let target_path = conf.target_path;
+    let templates_path = conf.templates_path;
+    let path_index = templates_path+"xml_read_index.xml";
+    let path_tfile = target_path+"tfiles.xml";
 
     let mut ware_file_string = " ".to_string();
 
-    let unwrapped_weapon = fs::read_to_string(path_weapon).unwrap();
-    let unwrapped_bullet = fs::read_to_string(path_bullet).unwrap();
-    let unwrapped_ware = fs::read_to_string(path_ware).unwrap();
-    let mut unwrapped_index = fs::read_to_string(path_index).unwrap();
+    let unwrapped_weapon = read_file(templates_path+"xml_read_weapon.xml");
+    let unwrapped_bullet = read_file(templates_path+"xml_read_bullet.xml");
+    let unwrapped_ware =   read_file(templates_path+"xml_read_ware.xml");
+    let mut unwrapped_index = read_file(path_index);
     let mut t_string = " ".to_string();
     // string crap
     let weapon = "_weapon_";
     let bullet = "_bullet_";
     let ware = "_ware_";
-    let target_path = "C:/Users/alby/Desktop/rust_targets/";
     let xml = ".xml";
     // <entry name="tpwareq_pulse_xlarge_proj_bullet_macro" value="extensions\tpwar_release\equipment\weapons\macros\tpwar_bullet_macros" />
     let new_entry_line = "
@@ -112,446 +225,41 @@ fn main() -> Result<()> {
     let mut macroname_vec: Vec<String> = vec![];
     let mut tname_vec: Vec<String> = vec![];
     // profile
-    let profile = vec!["small_gun", "medium_gun", "large_gun", "xl_gun"];
-    let mut turret_m_art = vec![
-        "turret_arg_m_beam_01_mk1",
-        "turret_arg_m_beam_02_mk1",
-        "turret_par_m_beam_01_mk1",
-        "turret_par_m_beam_02_mk1",
-        "turret_tel_m_beam_01_mk1",
-        "turret_tel_m_beam_02_mk1",
-        "turret_arg_m_gatling_01_mk1",
-        "turret_arg_m_gatling_02_mk1",
-        "turret_arg_m_plasma_01_mk1",
-        "turret_arg_m_plasma_02_mk1",
-        "turret_kha_m_beam_01_mk1",
-        "turret_par_m_gatling_01_mk1",
-        "turret_par_m_gatling_02_mk1",
-        "turret_par_m_plasma_01_mk1",
-        "turret_par_m_plasma_02_mk1",
-        "turret_tel_m_gatling_01_mk1",
-        "turret_tel_m_gatling_02_mk1",
-        "turret_tel_m_plasma_01_mk1",
-        "turret_tel_m_plasma_02_mk1",
-        "turret_arg_m_laser_01_mk1",
-        "turret_arg_m_laser_02_mk1",
-        "turret_arg_m_shotgun_01_mk1",
-        "turret_arg_m_shotgun_02_mk1",
-        "turret_par_m_laser_01_mk1",
-        "turret_par_m_laser_02_mk1",
-        "turret_par_m_shotgun_01_mk1",
-        "turret_par_m_shotgun_02_mk1",
-        "turret_tel_m_laser_01_mk1",
-        "turret_tel_m_laser_02_mk1",
-        "turret_tel_m_shotgun_01_mk1",
-        "turret_tel_m_shotgun_02_mk1",
-        "turret_xen_m_laser_02_mk1",
-        "turret_xen_m_laser_01_mk1",
-        "turret_xen_m_laser_02_mk1",
-    ];
-    let mut turret_l_art = vec![
-        "turret_arg_l_beam_01_mk1",
-        "turret_par_l_beam_01_mk1",
-        "turret_tel_l_beam_01_mk1",
-        "turret_arg_l_plasma_01_mk1",
-        "turret_par_l_plasma_01_mk1",
-        "turret_tel_l_plasma_01_mk1",
-        "turret_arg_l_laser_01_mk1",
-        "turret_par_l_laser_01_mk1",
-        "turret_tel_l_laser_01_mk1",
-        "turret_xen_l_laser_01_mk1",
-    ];
+    let mut turret_m_art = art.medium.turrets;
+    let mut turret_l_art = art.large.turrets;
     // wep
     let class = vec!["weapon", "turret"];
-    let mut weapon_l_art = vec![
-        "weapon_arg_l_destroyer_01_mk1",
-        "weapon_par_l_destroyer_01_mk1",
-        "weapon_tel_l_destroyer_01_mk1",
-        "weapon_arg_l_plasma_01_mk1",
-        "weapon_par_l_railgun_01_mk1",
-        "weapon_tel_l_beam_01_mk1",
-        "weapon_gen_l_laser_01_mk1",
-    ];
-    let mut weapon_m_art = vec![
-        "weapon_arg_m_ion_01_mk1",
-        "weapon_arg_m_ion_01_mk2",
-        "weapon_gen_m_beam_01_mk1",
-        "weapon_gen_m_beam_01_mk2",
-        "weapon_gen_m_gatling_01_mk1",
-        "weapon_gen_m_gatling_01_mk2",
-        "weapon_gen_m_plasma_01_mk1",
-        "weapon_gen_m_plasma_01_mk2",
-        "weapon_par_m_railgun_01_mk1",
-        "weapon_par_m_railgun_01_mk2",
-        "weapon_tel_m_charge_01_mk1",
-        "weapon_tel_m_charge_01_mk2",
-        "weapon_gen_m_laser_01_mk1",
-        "weapon_gen_m_laser_01_mk2",
-        "weapon_gen_m_shotgun_01_mk1",
-        "weapon_gen_m_shotgun_01_mk2",
-        "weapon_kha_m_laser_01_mk1",
-        "weapon_xen_m_laser_01_mk1",
-    ];
-    let mut weapon_s_art = vec![
-        "weapon_arg_s_ion_01_mk1",
-        "weapon_arg_s_ion_01_mk2",
-        "weapon_gen_s_beam_01_mk1",
-        "weapon_gen_s_beam_01_mk2",
-        "weapon_gen_s_gatling_01_mk1",
-        "weapon_gen_s_gatling_01_mk2",
-        "weapon_gen_s_plasma_01_mk1",
-        "weapon_gen_s_plasma_01_mk2",
-        "weapon_par_s_railgun_01_mk1",
-        "weapon_par_s_railgun_01_mk2",
-        "weapon_tel_s_charge_01_mk1",
-        "weapon_tel_s_charge_01_mk2",
-        "weapon_gen_s_laser_01_mk1",
-        "weapon_gen_s_laser_01_mk2",
-        "weapon_gen_s_shotgun_01_mk1",
-        "weapon_gen_s_shotgun_01_mk2",
-        "weapon_kha_s_laser_01_mk1",
-        "weapon_xen_s_laser_01_mk1",
-    ];
+    let mut weapon_l_art = art.large.weapons;
+    let mut weapon_m_art = art.medium.weapons;
+    let mut weapon_s_art  = art.small.weapons;
     // bullet comps
-    let mut bullet_l_art = vec!["bullet_gen_l_laser_01_mk1", "bullet_xen_l_laser_01_mk1"];
-    let mut bullet_m_beam_art = vec![
-        "bullet_gen_m_beam_01_mk1",
-        "bullet_gen_m_beam_01_mk2",
-        "bullet_gen_m_beam_01_mk1",
-        "bullet_kha_m_beam_01",
-        "bullet_gen_m_beam_01_mk1",
-    ];
-    let mut bullet_s_beam_art = vec![
-        "bullet_gen_s_beam_01_mk1",
-        "bullet_gen_s_beam_01_mk2",
-        "bullet_gen_s_beam_01_mk1",
-        "bullet_kha_s_beam_01",
-    ];
-    let mut bullet_m_art = vec![
-        "bullet_arg_m_ion_01_mk1",
-        "bullet_arg_m_ion_01_mk2",
-        "bullet_gen_m_gatling_01_mk1",
-        "bullet_gen_m_gatling_01_mk2",
-        "bullet_gen_m_laser_01_mk1",
-        "bullet_gen_m_laser_01_mk2",
-        "bullet_gen_m_plasma_01_mk1",
-        "bullet_gen_m_plasma_01_mk2",
-        "bullet_gen_m_shotgun_01_mk1",
-        "bullet_gen_m_shotgun_01_mk2",
-        "bullet_gen_m_gatling_01_mk1",
-        "bullet_gen_m_laser_01_mk1",
-        "bullet_gen_m_plasma_01_mk1",
-        "bullet_gen_m_shotgun_01_mk1",
-        "bullet_par_m_railgun_01_mk1",
-        "bullet_par_m_railgun_01_mk2",
-        "bullet_tel_m_charge_01_mk1",
-        "bullet_tel_m_charge_01_mk2",
-        "bullet_xen_m_laser_01_mk1",
-        "bullet_xen_m_laser_01_mk1",
-    ];
-    let mut bullet_s_art = vec![
-        "bullet_arg_s_ion_01_mk1",
-        "bullet_arg_s_ion_01_mk2",
-        "bullet_gen_s_gatling_01_mk1",
-        "bullet_gen_s_gatling_01_mk2",
-        "bullet_gen_s_laser_01_mk1",
-        "bullet_gen_s_laser_01_mk2",
-        "bullet_gen_s_plasma_01_mk1",
-        "bullet_gen_s_plasma_01_mk2",
-        "bullet_gen_s_shotgun_01_mk1",
-        "bullet_gen_s_shotgun_01_mk2",
-        "bullet_gen_s_gatling_01_mk1",
-        "bullet_gen_s_laser_01_mk1",
-        "bullet_gen_s_plasma_01_mk1",
-        "bullet_gen_s_shotgun_01_mk1",
-        "bullet_par_s_railgun_01_mk1",
-        "bullet_par_s_railgun_01_mk2",
-        "bullet_tel_s_charge_01_mk1",
-        "bullet_tel_s_charge_01_mk2",
-        "bullet_xen_s_laser_01_mk1",
-        "bullet_xen_s_laser_01_mk1",
-    ];
+    let mut bullet_l_art = art.large.projectiles;
+    let mut bullet_m_beam_art = art.medium.beams;
+    let mut bullet_s_beam_art = art.small.beams;
+    let mut bullet_m_art = art.medium.projectiles;
+    let mut bullet_s_art = art.small.projectiles;
     // icons
-    let mut wep_icons = vec![
-        "weapon_empbomb_mk1",
-        "weapon_bomb_mk1",
-        "weapon_ion_mk1",
-        "weapon_ion_mk2",
-        "weapon_ion_mk1",
-        "weapon_ion_mk2",
-        "weapon_laser_mk1",
-        "weapon_beam_mk1",
-        "weapon_beam_mk2",
-        "weapon_gatling_mk1",
-        "weapon_gatling_mk2",
-        "weapon_laser_mk1",
-        "weapon_laser_mk2",
-        "weapon_plasma_mk1",
-        "weapon_plasma_mk2",
-        "weapon_shotgun_mk1",
-        "weapon_shotgun_mk2",
-        "weapon_beam_mk1",
-        "weapon_beam_mk2",
-        "weapon_gatling_mk1",
-        "weapon_gatling_mk2",
-        "weapon_laser_mk1",
-        "weapon_laser_mk2",
-        "weapon_plasma_mk1",
-        "weapon_plasma_mk2",
-        "weapon_shotgun_mk1",
-        "weapon_shotgun_mk2",
-        "weapon_beam_mk1",
-        "weapon_gatling_mk1",
-        "weapon_laser_mk1",
-        "weapon_plasma_mk1",
-        "weapon_shotgun_mk1",
-        "weapon_beam_mk1",
-        "weapon_gatling_mk1",
-        "weapon_laser_mk1",
-        "weapon_plasma_mk1",
-        "weapon_shotgun_mk1",
-        "weapon_beam_mk2",
-        "weapon_beam_mk1",
-        "weapon_railgun_mk1",
-        "weapon_railgun_mk2",
-        "weapon_railgun_mk1",
-        "weapon_railgun_mk2",
-        "weapon_handlaser_mk1",
-        "weapon_repairlaser_mk1",
-        "weapon_charge_mk1",
-        "weapon_charge_mk2",
-        "weapon_charge_mk1",
-        "weapon_charge_mk2",
-        "weapon_laser_mk1",
-        "weapon_laser_mk1",
-        "weapon_laser_mk1",
-        "weapon_laser_mk1",
-        "weapon_beam_mk1",
-    ];
+    let mut wep_icons = art.icons;
     //effects
-    let mut impact_vec = vec![
-        "impact_arg_m_ion_01_mk1",
-        "impact_arg_m_ion_01_mk1",
-        "impact_arg_s_ion_01_mk1",
-        "impact_arg_s_ion_01_mk1",
-        "impact_gen_l_laser_01_mk1",
-        "impact_gen_m_beam_01_mk1",
-        "impact_gen_m_beam_01_mk1",
-        "impact_gen_m_gatling_01_mk1",
-        "impact_gen_m_gatling_01_mk1",
-        "impact_gen_m_laser_01_mk1",
-        "impact_gen_m_laser_01_mk1",
-        "impact_gen_m_plasma_01_mk1",
-        "impact_gen_m_plasma_01_mk1",
-        "impact_gen_m_shotgun_01_mk1",
-        "impact_gen_m_shotgun_01_mk1",
-        "impact_gen_s_beam_01_mk1",
-        "impact_gen_s_beam_01_mk1",
-        "impact_gen_s_gatling_01_mk1",
-        "impact_gen_s_gatling_01_mk1",
-        "impact_gen_s_laser_01_mk1",
-        "impact_gen_s_laser_01_mk1",
-        "impact_gen_s_plasma_01_mk1",
-        "impact_gen_s_plasma_01_mk1",
-        "impact_gen_s_shotgun_01_mk1",
-        "impact_gen_s_shotgun_01_mk1",
-        "impact_gen_m_beam_01_mk1",
-        "impact_gen_m_gatling_01_mk1",
-        "impact_gen_m_laser_01_mk1",
-        "impact_gen_m_plasma_01_mk1",
-        "impact_gen_m_shotgun_01_mk1",
-        "impact_gen_m_beam_01_mk1",
-        "impact_gen_s_gatling_01_mk1",
-        "impact_gen_s_laser_01_mk1",
-        "impact_gen_s_plasma_01_mk1",
-        "impact_gen_s_shotgun_01_mk1",
-        "impact_gen_m_beam_01_mk1",
-        "impact_gen_s_beam_01_mk1",
-        "impact_par_m_railgun_01_mk1",
-        "impact_par_m_railgun_01_mk1",
-        "impact_par_s_railgun_01_mk1",
-        "impact_par_s_railgun_01_mk1",
-        "impact_gen_spacesuit_laser_01_mk1",
-        "impact_spacesuit_repair_01_mk1",
-        "impact_tel_m_charge_01_mk1",
-        "impact_tel_m_charge_01_mk1",
-        "impact_tel_s_charge_01_mk1",
-        "impact_tel_s_charge_01_mk1",
-        "impact_xen_m_laser_01_mk1",
-        "impact_xen_m_laser_01_mk1",
-        "impact_xen_s_laser_01_mk1",
-        "impact_xen_m_laser_01_mk1",
-        "impact_xen_s_laser_01_mk1",
-    ];
-    let mut launch_vec = vec![
-        "muzzle_arg_m_ion_01_mk1",
-        "muzzle_arg_m_ion_01_mk1",
-        "muzzle_arg_s_ion_01_mk1",
-        "muzzle_arg_s_ion_01_mk1",
-        "muzzle_gen_l_laser_01_mk1",
-        "muzzle_gen_m_beam_01_mk1",
-        "muzzle_gen_m_beam_01_mk1",
-        "muzzle_gen_m_gatling_01_mk1",
-        "muzzle_gen_m_gatling_01_mk1",
-        "muzzle_gen_m_laser_01_mk1",
-        "muzzle_gen_m_laser_01_mk1",
-        "muzzle_gen_m_plasma_01_mk1",
-        "muzzle_gen_m_plasma_01_mk1",
-        "muzzle_gen_m_shotgun_01_mk1",
-        "muzzle_gen_m_shotgun_01_mk1",
-        "muzzle_gen_s_beam_01_mk1",
-        "muzzle_gen_s_beam_01_mk1",
-        "muzzle_gen_s_gatling_01_mk1",
-        "muzzle_gen_s_gatling_01_mk1",
-        "muzzle_gen_s_laser_01_mk1",
-        "muzzle_gen_s_laser_01_mk1",
-        "muzzle_gen_s_plasma_01_mk1",
-        "muzzle_gen_s_plasma_01_mk1",
-        "muzzle_gen_s_shotgun_01_mk1",
-        "muzzle_gen_s_shotgun_01_mk1",
-        "muzzle_gen_l_beam_01_mk1",
-        "muzzle_gen_m_gatling_01_mk1",
-        "muzzle_gen_m_laser_01_mk1",
-        "muzzle_gen_m_plasma_01_mk1",
-        "muzzle_gen_m_shotgun_01_mk1",
-        "muzzle_gen_m_beam_01_mk1",
-        "muzzle_gen_s_gatling_01_mk1",
-        "muzzle_gen_s_laser_01_mk1",
-        "muzzle_gen_s_plasma_01_mk1",
-        "muzzle_gen_s_shotgun_01_mk1",
-        "muzzle_gen_m_beam_01_mk1",
-        "muzzle_gen_s_beam_01_mk1",
-        "muzzle_par_m_railgun_01_mk1",
-        "muzzle_par_m_railgun_01_mk1",
-        "muzzle_par_s_railgun_01_mk1",
-        "muzzle_par_s_railgun_01_mk1",
-        "muzzle_gen_spacesuit_laser_01_mk1",
-        "muzzle_gen_s_repair_01_mk1",
-        "muzzle_tel_m_charge_01_mk1",
-        "muzzle_tel_m_charge_01_mk1",
-        "muzzle_tel_s_charge_01_mk1",
-        "muzzle_tel_s_charge_01_mk1",
-        "muzzle_xen_m_laser_01_mk1",
-        "muzzle_xen_m_laser_01_mk1",
-        "muzzle_xen_s_laser_01_mk1",
-        "muzzle_xen_m_laser_01_mk1",
-        "muzzle_xen_s_laser_01_mk1",
-        "wpn_flare_launcher",
-    ];
+    let mut impact_vec = art.effects.impact;
+    let mut launch_vec = art.effects.muzzle;
     // wares
-    let mut prodwares_vec = vec![
-        "advancedcomposites",
-        "advancedelectronics",
-        "antimattercells",
-        "antimatterconverters",
-        "claytronics",
-        "dronecomponents",
-        "energycells",
-        "engineparts",
-        "fieldcoils",
-        "foodrations",
-        "graphene",
-        "hullparts",
-        "majadust",
-        "majasnails",
-        "meat",
-        "medicalsupplies",
-        "microchips",
-        "missilecomponents",
-        "nostropoil",
-        "plasmaconductors",
-        "quantumtubes",
-        "refinedmetals",
-        "scanningarrays",
-        "shieldcomponents",
-        "siliconwafers",
-        "smartchips",
-        "sojabeans",
-        "sojahusk",
-        "spacefuel",
-        "spaceweed",
-        "spices",
-        "sunriseflowers",
-        "superfluidcoolant",
-        "swampplant",
-        "teladianium",
-        "turretcomponents",
-        "water",
-        "weaponcomponents",
-        "wheat",
-    ];
+    let mut prodwares_vec = conf.general.prodwares;
     // factions
-    let mut factions_vec = vec![
-        "khaakpox",
-        "xenonmatrix",
-        "atlas",
-        "sovsyn",
-        "cartel",
-        "agi",
-        "goner",
-        "wholefood",
-        "ledda",
-        "telunion",
-        "aldrin",
-        "cantera",
-        "toride",
-        "nmmc",
-        "atreus",
-        "jonferson",
-        "aquariuscorp",
-        "ptni",
-        "strongarms",
-        "plutarch",
-        "albionenergy",
-        "terracorp",
-        "franton",
-        "chow",
-        "beryll",
-        "terrapmc",
-        "otas",
-        "buccaneers",
-        "reivers",
-        "terrans",
-        "nolimits",
-        "uguras",
-        "heretics",
-        "yaki",
-        "usc",
-        "heartofalbion",
-        "sonraenergy",
-    ];
-    let mut small_mod = vec![
-        "Alpha ", "Small ", "75mm ", "100mm ", "Light ", "Tiny ", "limited ",
-    ];
-    let mut medium_mod = vec!["150mm ", "200mm ", "Medium ", "Standard ", "Beta "];
-    let mut large_mod = vec!["300mm ", "400mm ", "Large ", "Gamma ", "Heavy "];
+    let mut factions_vec = conf.general.factions;
+    let mut small_mod = conf.small.modifiers;
+    let mut medium_mod = conf.medium.modifiers;
+    let mut large_mod = conf.large.modifiers;
 
-    let mut weak_mod = vec![
-        "Rusty ",
-        "Weak ",
-        "Damaged ",
-        "Diminished ",
-        "Fragile ",
-        "Flawed ",
-        "Impulse ",
-    ];
-    let mut strong_mod = vec!["Advanced ", "Phased ", "Array ", "Fragmentation "];
-    let mut gun_type = vec!["Particle ", "Plasma ", "Ion ", "Artillery ", "Concussion "];
-    let mut gun_method = vec![
-        "Launcher ",
-        "Driver ",
-        "Railgun ",
-        "Emitter ",
-        "Ray ",
-        "Cannon ",
-        "Generator ",
-        "Projector ",
-    ];
-
+    let mut weak_mod = conf.general_modifiers.weak;
+    let mut strong_mod = conf.general_modifiers.weak;
+    let mut gun_type = conf.general_modifiers.guntype;
+    let mut gun_method = conf.general_modifiers.gunmethod;
+    let profiles = vec![Profile::Small, Profile::Medium, Profile::Large, Profile::ExtraLarge,];
     let mut profile_vec = vec![];
 
     for i in min_range..macro_count {
-        profile_vec.push(profile.choose(&mut rand::thread_rng()));
+        profile_vec.push(profiles.choose(&mut rand::thread_rng()));
         print!(
             "
         {:?}profile_vec !!!!!!!!!!!",
@@ -666,27 +374,7 @@ fn main() -> Result<()> {
     // Heavy
     // Hail
     // Thunderhead
-    let mut irng = rand::thread_rng();
-    turret_m_art.shuffle(&mut irng);
-    turret_l_art.shuffle(&mut irng);
-    weapon_l_art.shuffle(&mut irng);
-    weapon_m_art.shuffle(&mut irng);
-    weapon_s_art.shuffle(&mut irng);
-    bullet_l_art.shuffle(&mut irng);
-    bullet_m_beam_art.shuffle(&mut irng);
-    bullet_s_beam_art.shuffle(&mut irng);
-    bullet_m_art.shuffle(&mut irng);
-    bullet_s_art.shuffle(&mut irng);
-    wep_icons.shuffle(&mut irng);
-    impact_vec.shuffle(&mut irng);
-    launch_vec.shuffle(&mut irng);
-    small_mod.shuffle(&mut irng);
-    medium_mod.shuffle(&mut irng);
-    large_mod.shuffle(&mut irng);
-    weak_mod.shuffle(&mut irng);
-    strong_mod.shuffle(&mut irng);
-    gun_type.shuffle(&mut irng);
-    gun_method.shuffle(&mut irng);
+
     let mut prng = rand::thread_rng();
 
     for i in min_range..macro_count {
@@ -696,7 +384,7 @@ fn main() -> Result<()> {
 
         // INVARIANT!! = all lists must be the same size as they are indexed across time and space to be with their friends
         match profile_vec[i].unwrap() {
-            &"small_gun" => {
+            Profile::Small => {
                 class_vec.push("weapons".to_string());
                 weaponorturret_vec.push("weapon".to_string());
                 laserbool_vec.push(0);
@@ -763,7 +451,7 @@ fn main() -> Result<()> {
 
                 factions_ware_vec.push(choose_random(&mut factions_vec));
             }
-            &"medium_gun" => {
+            Profile::Medium => {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
@@ -838,7 +526,7 @@ fn main() -> Result<()> {
 
                 factions_ware_vec.push(choose_random(&mut factions_vec));
             }
-            &"large_gun" => {
+            Profile::Large => {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
@@ -918,7 +606,7 @@ fn main() -> Result<()> {
 
                 factions_ware_vec.push(choose_random(&mut factions_vec));
             }
-            &"xl_gun" => {
+            Profile::Large => {
                 weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
                 laserbool_vec.push(0);
                 if laserbool_vec[i] == 0 {
@@ -1332,17 +1020,3 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn replace_string(template: &mut String, word: &str, txt: &str) -> () {
-    let word_start = template.find(word).unwrap_or(template.len());
-    let word_end = word_start + word.len();
-
-    template.replace_range(word_start..word_end, &txt.to_string());
-}
-
-fn choose_random(choosefrom: &mut Vec<&str>) -> String {
-    let returnthing = choosefrom
-        .choose(&mut rand::thread_rng())
-        .unwrap()
-        .to_string();
-    return returnthing;
-}
