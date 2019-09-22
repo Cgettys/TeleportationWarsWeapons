@@ -1,6 +1,5 @@
 page_id   = 12345678
-templates_path="templates/"
-target_path = "C:/Users/alby/Desktop/rust_targets/";
+target_path = "~/rust_output/"
 prodwares = [
   "advancedcomposites",
   "advancedelectronics",
@@ -85,8 +84,8 @@ factions = [
 [general_modifiers]
 weak      = ["Rusty ", "Weak ", "Damaged ", "Diminished ","Fragile ", "Flawed ", "Impulse ",]
 strong    = ["Advanced ", "Phased ", "Array ", "Fragmentation "]
-guntype   = ["Particle ", "Plasma ", "Ion ", "Artillery ", "Concussion "]
-gunmethod = ["Launcher ", "Driver ", "Railgun ", "Emitter ", "Ray ", "Cannon ", "Generator ", "Projector ", ]
+gun_type   = ["Particle ", "Plasma ", "Ion ", "Artillery ", "Concussion "]
+gun_method = ["Launcher ", "Driver ", "Railgun ", "Emitter ", "Ray ", "Cannon ", "Generator ", "Projector ", ]
 [art]
 icons = [
   "bullet_arg_s_ion_01_mk1",      "bullet_arg_s_ion_01_mk2",
@@ -168,9 +167,21 @@ muzzle = [
   "muzzle_gen_l_laser_01_mk1",
 ]
 
-[small]
+[size.Small]
+# Limits
+weapon_range = [2,10]
+rate_of_fire=[0.5,5.0]
+damage_min=[10,50]
+damage_max=[50,100]
+speed = [500, 2000]
+rot_max = [10,240]
+rot_accel = [10, 240]
+reload_time=[1, 10]
+hull_value = [500, 2000]
+damage_flat_max=101
+# Other parameters
 modifiers=["Alpha ", "Small ", "75mm ", "100mm ", "Light ", "Tiny ", "limited ",] # TODO capital L on limited??
-weapons = [
+weapon_art = [
   "weapon_arg_s_ion_01_mk1",  "weapon_arg_s_ion_01_mk2",
   "weapon_gen_s_beam_01_mk1",  "weapon_gen_s_beam_01_mk2",
   "weapon_gen_s_gatling_01_mk1",  "weapon_gen_s_gatling_01_mk2",
@@ -180,7 +191,6 @@ weapons = [
   "weapon_gen_s_laser_01_mk1",  "weapon_gen_s_laser_01_mk2",  "weapon_kha_s_laser_01_mk1",  "weapon_xen_s_laser_01_mk1",
   "weapon_gen_s_shotgun_01_mk1",  "weapon_gen_s_shotgun_01_mk2",
 ]
-turrets = []
 beams = [
   "bullet_gen_s_beam_01_mk1",  "bullet_gen_s_beam_01_mk2",
   "bullet_gen_s_beam_01_mk1",  "bullet_kha_s_beam_01",
@@ -201,9 +211,19 @@ projectiles = [
 ]
 
 
-[medium]
+[size.Medium]
+weapon_range = [4,10]
+rate_of_fire=[0.5,5.0]
+damage_min=[10,50]
+damage_max=[50,100]
+speed = [500, 2000]
+rot_max = [10,240]
+rot_accel = [10, 240]
+reload_time=[1, 10]
+hull_value = [500, 2000]
+damage_flat_max=101
 modifiers=["150mm ", "200mm ", "Medium ", "Standard ", "Beta ",]
-weapons = [
+weapon_art = [
   "weapon_arg_m_ion_01_mk1",  "weapon_arg_m_ion_01_mk2",
   "weapon_gen_m_beam_01_mk1",  "weapon_gen_m_beam_01_mk2",
   "weapon_gen_m_gatling_01_mk1",  "weapon_gen_m_gatling_01_mk2",
@@ -214,7 +234,7 @@ weapons = [
   "weapon_gen_m_shotgun_01_mk1",  "weapon_gen_m_shotgun_01_mk2",
   "weapon_kha_m_laser_01_mk1",  "weapon_xen_m_laser_01_mk1"
 ]
-turrets= [
+turret_art= [
   "turret_arg_m_beam_01_mk1",  "turret_arg_m_beam_02_mk1",
   "turret_par_m_beam_01_mk1",  "turret_par_m_beam_02_mk1",
   "turret_tel_m_beam_01_mk1",  "turret_tel_m_beam_02_mk1",
@@ -256,9 +276,19 @@ projectiles = [
 ]
 
 
-[large]
+[size.Large]
+weapon_range = [6, 12]
+rate_of_fire=[0.5,5.0]
+damage_min=[10,50]
+damage_max=[50,100]
+speed = [500, 2000]
+rot_max = [10,240]
+rot_accel = [10, 240]
+reload_time=[1, 10]
+hull_value = [500, 2000]
+damage_flat_max=101
 modifiers = ["300mm ", "400mm ", "Large ", "Gamma ", "Heavy ",]
-weapons = [
+weapon_art = [
   "weapon_arg_l_destroyer_01_mk1",
   "weapon_par_l_destroyer_01_mk1",
   "weapon_tel_l_destroyer_01_mk1",
@@ -267,7 +297,42 @@ weapons = [
   "weapon_tel_l_beam_01_mk1",
   "weapon_gen_l_laser_01_mk1",
 ]
-turrets= [
+turret_art= [
+  "turret_arg_l_beam_01_mk1",   "turret_par_l_beam_01_mk1",   "turret_tel_l_beam_01_mk1",
+  "turret_arg_l_plasma_01_mk1", "turret_par_l_plasma_01_mk1", "turret_tel_l_plasma_01_mk1",
+  "turret_arg_l_laser_01_mk1",  "turret_par_l_laser_01_mk1",  "turret_tel_l_laser_01_mk1",  "turret_xen_l_laser_01_mk1",
+]
+beams = [] # TODO should this be empty?
+projectiles = [
+  "bullet_gen_l_laser_01_mk1",
+  "bullet_xen_l_laser_01_mk1"
+]
+
+[size.ExtraLarge]
+# TODO any extra large ones?
+weapon_range = [8,14]
+rate_of_fire=[10.0,50.0]
+damage_min=[1000,5000]
+damage_max=[5000,50000]
+speed = [500, 2000]
+rot_max = [10,240]
+rot_accel = [10, 240]
+reload_time=[1, 10]
+hull_value = [500, 2000]
+damage_flat_max=50001
+
+modifiers = ["300mm ", "400mm ", "Large ", "Gamma ", "Heavy ",]
+# TODO any extra large ones?
+weapon_art = [
+  "weapon_arg_l_destroyer_01_mk1",
+  "weapon_par_l_destroyer_01_mk1",
+  "weapon_tel_l_destroyer_01_mk1",
+  "weapon_arg_l_plasma_01_mk1",
+  "weapon_par_l_railgun_01_mk1",
+  "weapon_tel_l_beam_01_mk1",
+  "weapon_gen_l_laser_01_mk1",
+]
+turret_art= [
   "turret_arg_l_beam_01_mk1",   "turret_par_l_beam_01_mk1",   "turret_tel_l_beam_01_mk1",
   "turret_arg_l_plasma_01_mk1", "turret_par_l_plasma_01_mk1", "turret_tel_l_plasma_01_mk1",
   "turret_arg_l_laser_01_mk1",  "turret_par_l_laser_01_mk1",  "turret_tel_l_laser_01_mk1",  "turret_xen_l_laser_01_mk1",

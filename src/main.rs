@@ -1,15 +1,25 @@
+// https://stackoverflow.com/a/50334049
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
+
+use std::borrow::Borrow;
+use std::collections::HashMap;
 // requires the rand crate
-use std::fs;
 use std::fs::File;
 use std::io::Result;
-// use std::io::prelude::*;
-use rand::seq::SliceRandom;
-use rand::Rng;
-
 // use std::io::Read;
 use std::io::Write;
+
+use rand::distributions::uniform::SampleUniform;
+use rand::Rng;
+// use std::io::prelude::*;
+use rand::seq::SliceRandom;
+use serde::Deserialize;
+use strum::AsStaticRef;
+
 // use std::fs::OpenOptions;
-/* 
+/*
 
 TODO: 
     - heat
@@ -22,22 +32,59 @@ TODO:
     - move the file generation around 
 */
 
+#[derive(Clone, AsRefStr)]
+enum WeaponCategory {
+    Weapon,
+    Turret,
+}
 
-use serde_derive::Deserialize;
-use std::iter::Map;
-enum Profile {
+impl Default for WeaponCategory {
+    fn default() -> Self { WeaponCategory::Weapon }
+}
+
+#[derive(AsStaticStr, Deserialize, PartialEq)]
+enum Size {
     Small,
     Medium,
     Large,
-    ExtraLarge
+    ExtraLarge,
 }
-#[derive(Deserialize)]
-struct ProfileData {
+
+#[derive(Deserialize, Clone)]
+struct Limit<T: Clone + SampleUniform> {
+    min: T,
+    max: T,
+}
+
+impl<T: Clone + SampleUniform> Limit<T> {
+    fn gen(&self) -> T {
+        let mut prng = rand::thread_rng();
+        prng.gen_range(self.min.clone(), self.max.clone())
+    }
+}
+
+#[derive(Deserialize, Clone)]
+struct SizeData {
+    // Limits
+    weapon_range: Limit<i64>,
+    rate_of_fire: Limit<f64>,
+    // Note: Max of min must be less than min of max
+    damage_min: Limit<i64>,
+    damage_max: Limit<i64>,
+    damage_flat_max: i64,
+    speed: Limit<i64>,
+    rot_max: Limit<i64>,
+    rot_accel: Limit<i64>,
+    reload_time: Limit<i64>,
+    hull_value: Limit<i64>,
+
+    // Other parameters
     modifiers: Vec<String>,
-    weapons: Vec<String>,
-    turrets: Vec<String>,
+    weapon_art: Vec<String>,
+    turret_art: Option<Vec<String>>,
     beams: Vec<String>,
     projectiles: Vec<String>,
+
 }
 
 #[derive(Deserialize)]
@@ -45,80 +92,75 @@ struct Effects {
     impact: Vec<String>,
     muzzle: Vec<String>,
 }
+
 #[derive(Deserialize)]
 struct Art {
     icons: Vec<String>,
     effects: Effects,
 }
+
 #[derive(Deserialize)]
 struct Modifiers {
     weak: Vec<String>,
     strong: Vec<String>,
-    guntype: Vec<String>,
-    gunmethod: Vec<String>,
+    gun_type: Vec<String>,
+    gun_method: Vec<String>,
 }
 
 #[derive(Deserialize)]
 struct Config {
     page_id: u32,
-    template_path: String,
     target_path: String,
     prodwares: Vec<String>,
     factions: Vec<String>,
     art: Art,
-    general_modifiers: modifiers,
-    small: ProfileData,
-    medium: ProfileData,
-    large: ProfileData,
-    extralarge: ProfileData
+    general_modifiers: Modifiers,
+    size: HashMap<String, SizeData>,
 }
-struct Ship<'a> {
-    weapon: &'a str,
-    bullet: &'a str,
-    bullet_macroname: &'a str,
-    ware: &'a str,
-    weapon_component: &'a str,
 
-    icon_name: &'a str,
+#[derive(Default)]
+struct Weapon {
+    weapon_xml: String,
+    bullet_xml: String,
+    bullet_macroname: String,
+    ware_xml: String,
+    weapon_component: String,
+
+    icon_name: String,
     laser: bool,
     rate_of_fire: f64,
 
-    damage_min: i32,
-    damage_max: i32,
-    damage_flat: i32,
-    speed: i32,
-    weapon_range: i32,
-    speed_vec: i32,
+    damage_min: i64,
+    damage_max: i64,
+    damage_flat: i64,
+    speed: i64,
+    weapon_range: i64,
 
-    impact_effect: &'a str,
-    muzzle_effect: &'a str,
-    weapon_system: &'a str,
-    weapon_or_turret: &'a str,
+    impact_effect: String,
+    muzzle_effect: String,
+    weapon_system: String,
+    category: WeaponCategory,
 
-    rot_max: i32,
-    rot_accel: i32,
-    reload_time: i32,
-    hull_value: i32,
+    rot_max: i64,
+    rot_accel: i64,
+    reload_time: i64,
+    hull_value: i64,
 
-    price_min: i32,
-    price_avg: i32,
-    price_max: i32,
+    price_min: i64,
+    price_avg: i64,
+    price_max: i64,
 
-    factions_ware: &'a str,
-    class: &'a str,
+    factions_ware: String,
 
-    prodware_one_name: &'a str,
-    prodware_one_qty: i32,
-    prodware_two_name: &'a str,
-    prodware_two_qty: i32,
-    prodware_three_name: &'a str,
-    prodware_three_qty: i32,
-    compname: &'a str,
-    macroname: &'a str,
-    tname: &'a str,
-}
-fn read_file(path: &str) -> String {
-    fs::read_to_string(path).unwrap()
+    prodware_one_name: String,
+    prodware_one_qty: i64,
+    prodware_two_name: String,
+    prodware_two_qty: i64,
+    prodware_three_name: String,
+    prodware_three_qty: i64,
+    compname: String,
+    macroname: String,
+    tname: String,
 }
 
 fn replace_string(template: &mut String, word: &str, txt: &str) -> () {
@@ -129,19 +171,25 @@ fn replace_string(template: &mut String, word: &str, txt: &str) -> () {
 }
 
 fn choose_random(choosefrom: &Vec<String>) -> String {
-    let returnthing = choosefrom
+    choosefrom
         .choose(&mut rand::thread_rng())
         .unwrap()
-        .to_string();
-    return returnthing;
+        .to_string()
 }
+
+fn to_macro_name(name: &String) -> String {
+    name.replace(" ", "_").to_lowercase()
+}
+
 fn main() -> Result<()> {
     //parsing the "words" as stuff between whitespace
-    let toml_str = fs::read_to_string("Config.toml").unwrap();
-    let conf = toml_str.parse::<Config>().unwrap();
-    let art = conf.art;
+    // Note: Config is currently hard-coded at compile-time
+    let toml_str = include_str!("Config.toml");
+    let conf: Config = toml::from_str(toml_str.as_ref()).unwrap();
+    let art = &conf.art;
+    let gen_mod = &conf.general_modifiers;
     // tfiles
-    let page_id = conf.general.page_id;
+    let page_id = conf.page_id;
     let mut wep_name_id = 1;
     let mut wep_base_id = 2;
     let mut wep_short_id = 3;
@@ -156,17 +204,16 @@ fn main() -> Result<()> {
     let macroname = "macroname";
 
     // paths -> options -> strings
-    let target_path = conf.target_path;
-    let templates_path = conf.templates_path;
-    let path_index = templates_path+"xml_read_index.xml";
-    let path_tfile = target_path+"tfiles.xml";
+    let target_path = conf.target_path.clone();
+    // Note: currently hard-coded at compile-time
+    let path_tfile = target_path.clone() + "tfiles.xml";
 
     let mut ware_file_string = " ".to_string();
 
-    let unwrapped_weapon = read_file(templates_path+"xml_read_weapon.xml");
-    let unwrapped_bullet = read_file(templates_path+"xml_read_bullet.xml");
-    let unwrapped_ware =   read_file(templates_path+"xml_read_ware.xml");
-    let mut unwrapped_index = read_file(path_index);
+    let weapon_template = include_str!("../templates/xml_read_weapon.xml");
+    let bullet_template = include_str!("../templates/xml_read_bullet.xml");
+    let ware_template = include_str!("../templates/xml_read_ware.xml");
+    let mut index_template: String = include_str!("../templates/xml_read_index.xml").to_string();
     let mut t_string = " ".to_string();
     // string crap
     let weapon = "_weapon_";
@@ -183,90 +230,10 @@ fn main() -> Result<()> {
     let macro_count = 500;
     let min_range = 0;
 
-    let mut wep_vec = vec![];
-    let mut bul_vec = vec![];
-    let mut ware_vec = vec![];
-    let mut bullet_macroname_vec: Vec<String> = vec![];
-    let mut wep_comp_vec: Vec<String> = vec![];
-
-    let mut iconname_vec: Vec<String> = vec![];
-    let mut laserbool_vec: Vec<i32> = vec![];
-    let mut rateoffire_vec: Vec<f64> = vec![];
-    let mut mindamage_vec: Vec<i32> = vec![];
-    let mut maxdamage_vec: Vec<i32> = vec![];
-    let mut flatdamage_vec: Vec<i32> = vec![];
-    let mut speed_vec: Vec<i32> = vec![];
-    let mut weaponrange_vec: Vec<i32> = vec![];
-    let mut impactname_vec: Vec<String> = vec![];
-    let mut launchname_vec: Vec<String> = vec![];
-    let mut weaponsystem_vec: Vec<String> = vec![];
-    let mut weaponorturret_vec: Vec<String> = vec![];
-
-    let mut rotmax_vec: Vec<i32> = vec![];
-    let mut rotacc_vec: Vec<i32> = vec![];
-    let mut reloadtime_vec: Vec<i32> = vec![];
-    let mut hullvalue_vec: Vec<i32> = vec![];
-
-    let mut minprice_vec: Vec<i64> = vec![];
-    let mut avgprice_vec: Vec<i64> = vec![];
-    let mut maxprice_vec: Vec<i64> = vec![];
-
-    let mut factions_ware_vec: Vec<String> = vec![];
-    let mut class_vec: Vec<String> = vec![];
-
-    let mut prodwareone_vec: Vec<String> = vec![];
-    let mut prodwaretwo_vec: Vec<String> = vec![];
-    let mut prodwarethree_vec: Vec<String> = vec![];
-    let mut prodwareone_amount_vec: Vec<i32> = vec![];
-    let mut prodwaretwo_amount_vec: Vec<i32> = vec![];
-    let mut prodwarethree_amount_vec: Vec<i32> = vec![];
-
-    let mut compname_vec: Vec<String> = vec![];
-    let mut macroname_vec: Vec<String> = vec![];
-    let mut tname_vec: Vec<String> = vec![];
-    // profile
-    let mut turret_m_art = art.medium.turrets;
-    let mut turret_l_art = art.large.turrets;
+    let mut weapon_vec: Vec<Weapon> = vec![];// TODO remove when possible
     // wep
-    let class = vec!["weapon", "turret"];
-    let mut weapon_l_art = art.large.weapons;
-    let mut weapon_m_art = art.medium.weapons;
-    let mut weapon_s_art  = art.small.weapons;
-    // bullet comps
-    let mut bullet_l_art = art.large.projectiles;
-    let mut bullet_m_beam_art = art.medium.beams;
-    let mut bullet_s_beam_art = art.small.beams;
-    let mut bullet_m_art = art.medium.projectiles;
-    let mut bullet_s_art = art.small.projectiles;
-    // icons
-    let mut wep_icons = art.icons;
-    //effects
-    let mut impact_vec = art.effects.impact;
-    let mut launch_vec = art.effects.muzzle;
-    // wares
-    let mut prodwares_vec = conf.general.prodwares;
-    // factions
-    let mut factions_vec = conf.general.factions;
-    let mut small_mod = conf.small.modifiers;
-    let mut medium_mod = conf.medium.modifiers;
-    let mut large_mod = conf.large.modifiers;
-
-    let mut weak_mod = conf.general_modifiers.weak;
-    let mut strong_mod = conf.general_modifiers.weak;
-    let mut gun_type = conf.general_modifiers.guntype;
-    let mut gun_method = conf.general_modifiers.gunmethod;
-    let profiles = vec![Profile::Small, Profile::Medium, Profile::Large, Profile::ExtraLarge,];
-    let mut profile_vec = vec![];
-
-    for i in min_range..macro_count {
-        profile_vec.push(profiles.choose(&mut rand::thread_rng()));
-        print!(
-            "
-        {:?}profile_vec !!!!!!!!!!!",
-            profile_vec[i]
-        );
-    }
-
+    let class = vec![WeaponCategory::Weapon, WeaponCategory::Turret];
+    let sizes = vec![Size::Small, Size::Medium, Size::Large, Size::ExtraLarge, ];
     // Particle
     // Cannon
     // Impulse
@@ -376,321 +343,86 @@ fn main() -> Result<()> {
     // Thunderhead
 
     let mut prng = rand::thread_rng();
+    let empty_str: Vec<String> = vec![];
+    for _ in min_range..macro_count {
+        let size = sizes.choose(&mut prng).unwrap();
+        let size_str = size.as_static().to_string();
+        let size_conf: &SizeData = conf.size[&size_str].borrow();
+        let weapon_art = &size_conf.weapon_art;
+        let turret_art = size_conf.turret_art.as_ref().unwrap_or(&empty_str);
 
-    for i in min_range..macro_count {
-        wep_vec.push(unwrapped_weapon.clone());
-        bul_vec.push(unwrapped_bullet.clone());
-        ware_vec.push(unwrapped_ware.clone());
-
-        // INVARIANT!! = all lists must be the same size as they are indexed across time and space to be with their friends
-        match profile_vec[i].unwrap() {
-            Profile::Small => {
-                class_vec.push("weapons".to_string());
-                weaponorturret_vec.push("weapon".to_string());
-                laserbool_vec.push(0);
-                if laserbool_vec[i] == 0 {
-                    compname_vec.push(choose_random(&mut bullet_s_art).to_string())
-                } else {
-                    compname_vec.push(choose_random(&mut bullet_s_beam_art).to_string())
-                  
-                }
-
-                wep_comp_vec.push(
-                    weapon_s_art
-                        .choose(&mut rand::thread_rng())
-                        .unwrap()
-                        .to_string(),
-                );
-                weaponrange_vec.push(prng.gen_range(2, 10));
-                iconname_vec.push(choose_random(&mut wep_icons).to_string());
-                rateoffire_vec.push(prng.gen_range(0.5, 5.0));
-                mindamage_vec.push(prng.gen_range(10, 50));
-                maxdamage_vec.push(prng.gen_range(50, 100));
-                flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
-                speed_vec.push(prng.gen_range(500, 2000));
-                weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(choose_random(&mut impact_vec).to_string());
-                launchname_vec.push(choose_random(&mut launch_vec).to_string());
-                weaponsystem_vec.push("weapon_standard".to_string());
-
-                rotmax_vec.push(prng.gen_range(10, 240));
-                rotacc_vec.push(prng.gen_range(10, 240));
-                reloadtime_vec.push(prng.gen_range(1, 10));
-                hullvalue_vec.push(prng.gen_range(500, 2000));
-
-                let dps = ((mindamage_vec[i] + maxdamage_vec[i]) / 2 + flatdamage_vec[i]) as f64
-                    * rateoffire_vec[i];
-                print!(
-                    "
-                small: {:?}",
-                    dps
-                );
-                minprice_vec
-                    .push(prng.gen_range((dps * 100 as f64) as i64, (dps * 200 as f64) as i64));
-                avgprice_vec
-                    .push(prng.gen_range((dps * 200 as f64) as i64, (dps * 300 as f64) as i64));
-                maxprice_vec
-                    .push(prng.gen_range((dps * 300 as f64) as i64, (dps * 400 as f64) as i64));
-                let name = choose_random(if dps >= 300 as f64 {
-                    &mut strong_mod
-                } else {
-                    &mut weak_mod
-                }) + &choose_random(&mut small_mod)
-                    + &choose_random(&mut gun_type)
-                    + &choose_random(&mut gun_method);
-                tname_vec.push(name.clone());
-                bullet_macroname_vec.push(name.clone() + "bullet_" + "macro");
-                macroname_vec.push(name + "macro");
-
-                prodwareone_vec.push(choose_random(&mut prodwares_vec));
-                prodwaretwo_vec.push(choose_random(&mut prodwares_vec));
-                prodwarethree_vec.push(choose_random(&mut prodwares_vec));
-                prodwareone_amount_vec.push(prng.gen_range(10, 240));
-                prodwaretwo_amount_vec.push(prng.gen_range(10, 240));
-                prodwarethree_amount_vec.push(prng.gen_range(10, 240));
-
-                factions_ware_vec.push(choose_random(&mut factions_vec));
-            }
-            Profile::Medium => {
-                weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
-                laserbool_vec.push(0);
-                if laserbool_vec[i] == 0 {
-                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
-                } else {
-                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
-                }
-               
-                if weaponorturret_vec[i] == "weapon".to_string() {
-                    wep_comp_vec.push(
-                        weapon_m_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("weapons".to_string());
-                } else {
-                    wep_comp_vec.push(
-                        turret_m_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("turrets".to_string());
-                }
-
-                weaponrange_vec.push(prng.gen_range(4, 10));
-                iconname_vec.push(choose_random(&mut wep_icons).to_string());
-                rateoffire_vec.push(prng.gen_range(0.5, 5.0));
-                mindamage_vec.push(prng.gen_range(10, 50));
-                maxdamage_vec.push(prng.gen_range(50, 100));
-                flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
-                speed_vec.push(prng.gen_range(500, 2000));
-                weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(choose_random(&mut impact_vec).to_string());
-                launchname_vec.push(choose_random(&mut launch_vec).to_string());
-                weaponsystem_vec.push("weapon_standard".to_string());
-                rotmax_vec.push(prng.gen_range(10, 240));
-                rotacc_vec.push(prng.gen_range(10, 240));
-                reloadtime_vec.push(prng.gen_range(1, 10));
-                hullvalue_vec.push(prng.gen_range(500, 2000));
-                let dps = ((mindamage_vec[i] + maxdamage_vec[i]) / 2 + flatdamage_vec[i]) as f64
-                    * rateoffire_vec[i];
-                print!(
-                    "
-                medium: {:?}",
-                    dps
-                );
-                minprice_vec
-                    .push(prng.gen_range((dps * 100 as f64) as i64, (dps * 200 as f64) as i64));
-                avgprice_vec
-                    .push(prng.gen_range((dps * 200 as f64) as i64, (dps * 300 as f64) as i64));
-                maxprice_vec
-                    .push(prng.gen_range((dps * 300 as f64) as i64, (dps * 400 as f64) as i64));
-                let name = choose_random(if dps >= 300 as f64 {
-                    &mut strong_mod
-                } else {
-                    &mut weak_mod
-                }) + &choose_random(&mut medium_mod)
-                    + &choose_random(&mut gun_type)
-                    + &choose_random(&mut gun_method);
-                tname_vec.push(name.clone());
-                bullet_macroname_vec.push(name.clone() + "bullet_" + "macro");
-                macroname_vec.push(name + "macro");
-
-                prodwareone_vec.push(choose_random(&mut prodwares_vec));
-                prodwaretwo_vec.push(choose_random(&mut prodwares_vec));
-                prodwarethree_vec.push(choose_random(&mut prodwares_vec));
-                prodwareone_amount_vec.push(prng.gen_range(10, 240));
-                prodwaretwo_amount_vec.push(prng.gen_range(10, 240));
-                prodwarethree_amount_vec.push(prng.gen_range(10, 240));
-
-                factions_ware_vec.push(choose_random(&mut factions_vec));
-            }
-            Profile::Large => {
-                weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
-                laserbool_vec.push(0);
-                if laserbool_vec[i] == 0 {
-                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
-                } else {
-                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
-                }
-               
-                if weaponorturret_vec[i] == "weapon".to_string() {
-                    wep_comp_vec.push(
-                        weapon_l_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("weapons".to_string());
-                } else {
-                    wep_comp_vec.push(
-                        turret_l_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("turrets".to_string());
-                }
-                wep_comp_vec.push(
-                    weapon_l_art
-                        .choose(&mut rand::thread_rng())
-                        .unwrap()
-                        .to_string(),
-                );
-                weaponrange_vec.push(prng.gen_range(6, 12));
-                iconname_vec.push(choose_random(&mut wep_icons).to_string());
-                rateoffire_vec.push(prng.gen_range(0.5, 5.0));
-                mindamage_vec.push(prng.gen_range(10, 50));
-                maxdamage_vec.push(prng.gen_range(50, 100));
-                flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 100));
-                speed_vec.push(prng.gen_range(500, 2000));
-                weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(choose_random(&mut impact_vec).to_string());
-                launchname_vec.push(choose_random(&mut launch_vec).to_string());
-                weaponsystem_vec.push("weapon_standard".to_string());
-                rotmax_vec.push(prng.gen_range(10, 240));
-                rotacc_vec.push(prng.gen_range(10, 240));
-                reloadtime_vec.push(prng.gen_range(1, 10));
-                hullvalue_vec.push(prng.gen_range(500, 2000));
-                let dps = ((mindamage_vec[i] + maxdamage_vec[i]) / 2 + flatdamage_vec[i]) as f64
-                    * rateoffire_vec[i];
-                print!(
-                    "
-                large: {:?}",
-                    dps
-                );
-                minprice_vec
-                    .push(prng.gen_range((dps * 100 as f64) as i64, (dps * 200 as f64) as i64));
-                avgprice_vec
-                    .push(prng.gen_range((dps * 200 as f64) as i64, (dps * 300 as f64) as i64));
-                maxprice_vec
-                    .push(prng.gen_range((dps * 300 as f64) as i64, (dps * 400 as f64) as i64));
-                let name = choose_random(if dps >= 300 as f64 {
-                    &mut strong_mod
-                } else {
-                    &mut weak_mod
-                }) + &choose_random(&mut large_mod)
-                    + &choose_random(&mut gun_type)
-                    + &choose_random(&mut gun_method);
-                tname_vec.push(name.clone());
-                bullet_macroname_vec.push(name.clone() + "bullet_" + "macro");
-                macroname_vec.push(name + "macro");
-
-                prodwareone_vec.push(choose_random(&mut prodwares_vec));
-                prodwaretwo_vec.push(choose_random(&mut prodwares_vec));
-                prodwarethree_vec.push(choose_random(&mut prodwares_vec));
-                prodwareone_amount_vec.push(prng.gen_range(10, 240));
-                prodwaretwo_amount_vec.push(prng.gen_range(10, 240));
-                prodwarethree_amount_vec.push(prng.gen_range(10, 240));
-
-                factions_ware_vec.push(choose_random(&mut factions_vec));
-            }
-            Profile::Large => {
-                weaponorturret_vec.push(class.choose(&mut rand::thread_rng()).unwrap().to_string());
-                laserbool_vec.push(0);
-                if laserbool_vec[i] == 0 {
-                    compname_vec.push(choose_random(&mut bullet_m_art).to_string())
-                } else {
-                    compname_vec.push(choose_random(&mut bullet_m_beam_art).to_string())
-                }
-                if weaponorturret_vec[i] == "weapon".to_string() {
-                    wep_comp_vec.push(
-                        weapon_l_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("weapons".to_string());
-                } else {
-                    wep_comp_vec.push(
-                        turret_l_art
-                            .choose(&mut rand::thread_rng())
-                            .unwrap()
-                            .to_string(),
-                    );
-                    class_vec.push("turrets".to_string());
-                }
-                wep_comp_vec.push(
-                    weapon_l_art
-                        .choose(&mut rand::thread_rng())
-                        .unwrap()
-                        .to_string(),
-                );
-                weaponrange_vec.push(prng.gen_range(8, 14));
-                iconname_vec.push(choose_random(&mut wep_icons).to_string());
-                rateoffire_vec.push(prng.gen_range(10.0, 50.0));
-                mindamage_vec.push(prng.gen_range(1000, 5000));
-                maxdamage_vec.push(prng.gen_range(5000, 50000));
-                flatdamage_vec.push(prng.gen_range(maxdamage_vec[i], 50000));
-                speed_vec.push(prng.gen_range(500, 2000));
-                weaponrange_vec.push(prng.gen_range(2, 9));
-                impactname_vec.push(choose_random(&mut impact_vec).to_string());
-                launchname_vec.push(choose_random(&mut launch_vec).to_string());
-                weaponsystem_vec.push("weapon_standard".to_string());
-                rotmax_vec.push(prng.gen_range(10, 240));
-                rotacc_vec.push(prng.gen_range(10, 240));
-                reloadtime_vec.push(prng.gen_range(1, 10));
-                hullvalue_vec.push(prng.gen_range(500, 2000));
-
-                let dps = ((mindamage_vec[i] + maxdamage_vec[i]) / 2 + flatdamage_vec[i]) as f64
-                    * rateoffire_vec[i];
-                print!(
-                    "
-                xl: {:?}",
-                    dps
-                );
-                minprice_vec
-                    .push(prng.gen_range((dps * 100 as f64) as i64, (dps * 200 as f64) as i64));
-                avgprice_vec
-                    .push(prng.gen_range((dps * 200 as f64) as i64, (dps * 300 as f64) as i64));
-                maxprice_vec
-                    .push(prng.gen_range((dps * 300 as f64) as i64, (dps * 400 as f64) as i64));
-                let name = choose_random(if dps >= 300 as f64 {
-                    &mut strong_mod
-                } else {
-                    &mut weak_mod
-                }) + &choose_random(&mut large_mod)
-                    + &choose_random(&mut gun_type)
-                    + &choose_random(&mut gun_method);
-                tname_vec.push(name.clone());
-                bullet_macroname_vec.push(name.clone() + "bullet_" + "macro");
-                macroname_vec.push(name + "macro");
-
-                prodwareone_vec.push(choose_random(&mut prodwares_vec));
-                prodwaretwo_vec.push(choose_random(&mut prodwares_vec));
-                prodwarethree_vec.push(choose_random(&mut prodwares_vec));
-                prodwareone_amount_vec.push(prng.gen_range(10, 240));
-                prodwaretwo_amount_vec.push(prng.gen_range(10, 240));
-                prodwarethree_amount_vec.push(prng.gen_range(10, 240));
-
-                factions_ware_vec.push(choose_random(&mut factions_vec));
-            }
-            _ => print!(
-                "ERROR - no profile match!!!
+        let damage_min = size_conf.damage_max.gen();
+        let damage_max = size_conf.damage_max.gen();
+        // TODO is this intended behavior of min?
+        let damage_flat = prng.gen_range(damage_max, size_conf.damage_flat_max);
+        let rate_of_fire = size_conf.rate_of_fire.gen();
+        let dps = ((damage_min + damage_max) as f64 / 2f64 + damage_flat as f64) * rate_of_fire;
+        print!(
             "
-            ),
-        }
+                {}: {:?}",
+            size.as_static(),
+            dps
+        );
+        let name = choose_random(if dps >= 300f64 {
+            &gen_mod.strong
+        } else {
+            &gen_mod.weak
+        }) + &choose_random(&size_conf.modifiers)
+            + &choose_random(&gen_mod.gun_type)
+            + &choose_random(&gen_mod.gun_method);
+        let laser = false;
+        let category = if turret_art.is_empty() {
+            WeaponCategory::Weapon
+        } else {
+            class.choose(&mut prng).unwrap().clone()
+        };
+        let wep = Weapon {
+            laser,
+            category: category.clone(),
+            compname: if !laser {
+                choose_random(&size_conf.projectiles)
+            } else {
+                choose_random(&size_conf.beams)
+            },
+            weapon_component: match &category {
+                WeaponCategory::Weapon => weapon_art,
+                WeaponCategory::Turret => turret_art
+            }.choose(&mut prng).unwrap().to_string(),
+            tname: name.clone(),
+            bullet_macroname: to_macro_name((name.clone() + "bullet_macro").borrow()),
+            macroname: to_macro_name((name.clone() + "macro").borrow()),
+            weapon_xml: weapon_template.to_string(),
+            bullet_xml: bullet_template.to_string(),
+            ware_xml: ware_template.to_string(),
+            icon_name: choose_random(&art.icons).to_string(),
+            price_min: prng.gen_range((dps * 100f64) as i64, (dps * 200f64) as i64),
+            price_avg: prng.gen_range((dps * 200f64) as i64, (dps * 300f64) as i64),
+            price_max: prng.gen_range((dps * 300f64) as i64, (dps * 400f64) as i64),
+            damage_min,
+            damage_max,
+            damage_flat,
+            rate_of_fire,
+            weapon_range: size_conf.weapon_range.gen(),
+            reload_time: size_conf.reload_time.gen(),
+
+            rot_max: size_conf.rot_max.gen(),
+            rot_accel: size_conf.rot_accel.gen(),
+            hull_value: size_conf.hull_value.gen(),
+            speed: size_conf.speed.gen(),
+
+            impact_effect: choose_random(&art.effects.impact).to_string(),
+            muzzle_effect: choose_random(&art.effects.muzzle).to_string(),
+
+            weapon_system: "weapon_standard".to_string(),
+            prodware_one_name: choose_random(&conf.prodwares),
+            prodware_one_qty: prng.gen_range(10, 240),
+            prodware_two_name: choose_random(&conf.prodwares),
+            prodware_two_qty: prng.gen_range(10, 240),
+            prodware_three_name: choose_random(&conf.prodwares),
+            prodware_three_qty: prng.gen_range(10, 240),
+            factions_ware: choose_random(&conf.factions),
+        };
+        weapon_vec.push(wep);
     }
 
     for i in min_range..macro_count {
@@ -698,76 +430,76 @@ fn main() -> Result<()> {
         wep_base_id += 100;
         wep_short_id += 100;
         wep_desc_id += 100;
-
-        let mut mutable_template = wep_vec[i].clone();
-        for word in wep_vec[i].split_whitespace() {
+        let wep = &mut weapon_vec[i];
+        let weapon_xml = &mut wep.weapon_xml;
+        for word in weapon_xml.clone().split_whitespace() {
             match word {
                 "macroname" => replace_string(
-                    &mut mutable_template,
+                    weapon_xml,
                     word,
-                    &macroname_vec[i].replace(" ", "_").to_lowercase(),
+                    &wep.macroname,
                 ),
                 "bulletmacroname" => replace_string(
-                    &mut mutable_template,
+                    weapon_xml,
                     word,
-                    &bullet_macroname_vec[i].replace(" ", "_").to_lowercase(),
+                    &wep.bullet_macroname,
                 ),
                 "compname" => {
-                    replace_string(&mut mutable_template, word, &wep_comp_vec[i].to_string())
+                    replace_string(weapon_xml, word, &wep.weapon_component)
                 }
-                "pageident" => replace_string(&mut mutable_template, word, &page_id.to_string()),
+                "pageident" => replace_string(weapon_xml, word, &page_id.to_string()),
                 "nameid" => {
                     wep_name_id += 1;
-                    replace_string(&mut mutable_template, word, &wep_name_id.to_string());
+                    replace_string(weapon_xml, word, &wep_name_id.to_string());
                     t_string.push_str(&format!(
                         "
                     <t id={:?}>{}</t>",
                         &wep_name_id.to_string(),
-                        tname_vec[i]
+                        wep.tname
                     ))
                 }
                 "baseid" => {
                     wep_base_id += 1;
-                    replace_string(&mut mutable_template, word, &wep_base_id.to_string());
+                    replace_string(weapon_xml, word, &wep_base_id.to_string());
                     t_string.push_str(&format!(
                         "
                     <t id={:?}>{}</t>",
                         &wep_base_id.to_string(),
-                        tname_vec[i]
+                        wep.tname
                     ))
                 }
                 "shortid" => {
                     wep_short_id += 1;
-                    replace_string(&mut mutable_template, word, &wep_short_id.to_string());
+                    replace_string(weapon_xml, word, &wep_short_id.to_string());
                     t_string.push_str(&format!(
                         "
                     <t id={:?}>{}</t>",
                         &wep_short_id.to_string(),
-                        tname_vec[i]
+                        wep.tname
                     ))
                 }
                 "descid" => {
                     wep_desc_id += 1;
-                    replace_string(&mut mutable_template, word, &wep_desc_id.to_string());
+                    replace_string(weapon_xml, word, &wep_desc_id.to_string());
                     t_string.push_str(&format!(
                         "
                     <t id={:?}>{}</t>",
                         &wep_desc_id.to_string(),
-                        tname_vec[i]
+                        wep.tname
                     ))
                 }
-                "rotmax" => replace_string(&mut mutable_template, word, &rotmax_vec[i].to_string()),
-                "rotacc" => replace_string(&mut mutable_template, word, &rotacc_vec[i].to_string()),
+                "rotmax" => replace_string(weapon_xml, word, &wep.rot_max.to_string()),
+                "rotacc" => replace_string(weapon_xml, word, &wep.rot_accel.to_string()),
                 "reloadtime" => {
-                    replace_string(&mut mutable_template, word, &reloadtime_vec[i].to_string())
+                    replace_string(weapon_xml, word, &wep.reload_time.to_string())
                 }
                 "hullvalue" => {
-                    replace_string(&mut mutable_template, word, &hullvalue_vec[i].to_string())
+                    replace_string(weapon_xml, word, &wep.hull_value.to_string())
                 }
                 "weaponorturret" => replace_string(
-                    &mut mutable_template,
+                    weapon_xml,
                     word,
-                    &weaponorturret_vec[i].to_string(),
+                    &wep.category.as_ref().to_lowercase(),
                 ),
 
                 _ => (),
@@ -778,7 +510,7 @@ fn main() -> Result<()> {
         let weapon_result_path = format!("{}{}{}{}{}", target_path, macroname, weapon, i, xml);
         let mut file = File::create(&weapon_result_path)?;
         file.write_all(
-            mutable_template
+            weapon_xml
                 .replace("  \"", "\"")
                 .replace("\"  ", "\"")
                 .replace("\"{ ", "\"{")
@@ -795,96 +527,95 @@ fn main() -> Result<()> {
         ware_short_id += 100;
         ware_desc_id += 100;
 
-        let mut mutable_ware_template = ware_vec[i].clone();
-        for word in ware_vec[i].split_whitespace() {
+        let ware_xml = &mut wep.ware_xml;
+        for word in ware_xml.clone().split_whitespace() {
             match word {
                 "macroname" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &macroname_vec[i].replace(" ", "_").to_lowercase(),
+                    &wep.macroname,
                 ),
-                "pageident" => {
-                    replace_string(&mut mutable_ware_template, word, &page_id.to_string())
-                }
+                "pageident" => replace_string(ware_xml, word, &page_id.to_string()),
                 "nameid" => {
                     ware_name_id += 1;
-                    replace_string(&mut mutable_ware_template, word, &ware_name_id.to_string())
+                    replace_string(ware_xml, word, &ware_name_id.to_string())
                 }
                 "baseid" => {
                     ware_base_id += 1;
-                    replace_string(&mut mutable_ware_template, word, &ware_base_id.to_string())
+                    replace_string(ware_xml, word, &ware_base_id.to_string())
                 }
                 "shortid" => {
                     ware_short_id += 1;
-                    replace_string(&mut mutable_ware_template, word, &ware_short_id.to_string())
+                    replace_string(ware_xml, word, &ware_short_id.to_string())
                 }
                 "descid" => {
                     ware_desc_id += 1;
-                    replace_string(&mut mutable_ware_template, word, &ware_desc_id.to_string())
+                    replace_string(ware_xml, word, &ware_desc_id.to_string())
                 }
                 "minprice" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &minprice_vec[i].to_string(),
+                    &wep.price_min.to_string(),
                 ),
                 "avgprice" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &avgprice_vec[i].to_string(),
+                    &wep.price_avg.to_string(),
                 ),
                 "maxprice" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &maxprice_vec[i].to_string(),
+                    &wep.price_max.to_string(),
                 ),
-                "classgroup" => {
-                    replace_string(&mut mutable_ware_template, word, &class_vec[i].to_string())
-                }
-                "weaponorturret" => replace_string(
-                    &mut mutable_ware_template,
+                "classgroup" => replace_string(
+                    ware_xml,
                     word,
-                    &weaponorturret_vec[i].to_string(),
+                    &(wep.category.as_ref().to_string().to_lowercase() + "s")),
+                "weaponorturret" => replace_string(
+                    ware_xml,
+                    word,
+                    &wep.category.as_ref().to_lowercase(),
                 ),
 
                 "prodwareone" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwareone_vec[i].to_string(),
+                    &wep.prodware_one_name.to_string(),
                 ),
                 "prodwaretwo" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwaretwo_vec[i].to_string(),
+                    &wep.prodware_two_name,
                 ),
                 "prodwarethree" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwarethree_vec[i].to_string(),
+                    &wep.prodware_three_name,
                 ),
                 "prodwareone_amount" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwareone_amount_vec[i].to_string(),
+                    &wep.prodware_one_qty.to_string(),
                 ),
                 "prodwaretwo_amount" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwaretwo_amount_vec[i].to_string(),
+                    &wep.prodware_two_qty.to_string(),
                 ),
                 "prodwarethree_amount" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &prodwarethree_amount_vec[i].to_string(),
+                    &wep.prodware_three_qty.to_string(),
                 ),
                 "factions_ware" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &factions_ware_vec[i].to_string(),
+                    &wep.factions_ware.to_string(),
                 ),
                 "wareid" => replace_string(
-                    &mut mutable_ware_template,
+                    ware_xml,
                     word,
-                    &macroname_vec[i].replace(" ", "_").to_lowercase(),
+                    &wep.macroname,
                 ),
 
                 _ => (),
@@ -895,13 +626,13 @@ fn main() -> Result<()> {
             "
         ",
         );
-        ware_file_string.push_str(&mutable_ware_template);
+        ware_file_string.push_str(ware_xml);
 
         // index entries
         let newentry = format!(
             "{}{}{}{}{}",
             new_entry_line,
-            &macroname_vec[i].replace(" ", "_").to_lowercase(),
+            &wep.macroname,
             value,
             format!("{}{}{}", macroname, weapon, i),
             closing
@@ -909,81 +640,77 @@ fn main() -> Result<()> {
         let bulletnewentry = format!(
             "{}{}{}{}{}",
             new_entry_line,
-            &bullet_macroname_vec[i].replace(" ", "_").to_lowercase(),
+            &wep.bullet_macroname,
             value,
             format!("{}{}{}", macroname, bullet, i),
             closing
         );
-        unwrapped_index.push_str(&newentry);
-        unwrapped_index.push_str(&bulletnewentry);
+        index_template.push_str(&newentry);
+        index_template.push_str(&bulletnewentry);
 
-        let mut mutable_bul_template = bul_vec[i].clone();
-        for word in bul_vec[i].split_whitespace() {
+        let bullet_xml = &mut wep.bullet_xml;
+        for word in bullet_xml.clone().split_whitespace() {
             match word {
                 "bulletmacroname" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &bullet_macroname_vec[i].replace(" ", "_").to_lowercase(),
+                    &wep.bullet_macroname,
                 ),
                 "iconname" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &iconname_vec[i].to_string(),
+                    &wep.icon_name,
                 ),
                 "laserbool" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &laserbool_vec[i].to_string(),
+                    &(wep.laser as i32).to_string(),
                 ),
                 "rateoffire" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &rateoffire_vec[i].to_string(),
+                    &wep.rate_of_fire.to_string(),
                 ),
                 "mindamage" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &mindamage_vec[i].to_string(),
+                    &wep.damage_min.to_string(),
                 ),
                 "maxdamage" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &maxdamage_vec[i].to_string(),
+                    &wep.damage_max.to_string(),
                 ),
                 "flatdamage" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &flatdamage_vec[i].to_string(),
+                    &wep.damage_flat.to_string(),
                 ),
                 "speedvalue" => {
-                    replace_string(&mut mutable_bul_template, word, &speed_vec[i].to_string())
+                    replace_string(bullet_xml, word, &wep.speed.to_string())
                 }
                 "lifetimevalue" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &weaponrange_vec[i].to_string(),
+                    &wep.weapon_range.to_string(),
                 ),
                 "impactname" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &impactname_vec[i].to_string(),
+                    &wep.impact_effect,
                 ),
                 "launchname" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &launchname_vec[i].to_string(),
+                    &wep.muzzle_effect,
                 ),
                 "weaponsystem" => replace_string(
-                    &mut mutable_bul_template,
+                    bullet_xml,
                     word,
-                    &weaponsystem_vec[i].to_string(),
+                    &wep.weapon_system,
                 ),
 
-                "componentname" => replace_string(
-                    &mut mutable_bul_template,
-                    word,
-                    &compname_vec[i].to_string(),
-                ),
+                "componentname" => replace_string(bullet_xml, word, &wep.compname),
                 _ => (),
             };
         }
@@ -992,7 +719,7 @@ fn main() -> Result<()> {
         let bullet_result_path = format!("{}{}{}{}{}", target_path, macroname, bullet, i, xml);
         let mut file = File::create(&bullet_result_path)?;
         file.write_all(
-            mutable_bul_template
+            bullet_xml
                 .replace("  \"", "\"")
                 .replace("\"  ", "\"")
                 .as_bytes(),
@@ -1012,8 +739,8 @@ fn main() -> Result<()> {
     )?;
     print!("{:?}", ware_result_path);
     // overwrite index
-    let mut indexfile = File::create(path_index)?;
-    indexfile.write_all(unwrapped_index.as_bytes())?;
+    let mut indexfile = File::create(target_path + "index.xml")?;
+    indexfile.write_all(index_template.as_bytes())?;
     // tfile
     let mut tfile = File::create(path_tfile)?;
     tfile.write_all(t_string.as_bytes())?;
